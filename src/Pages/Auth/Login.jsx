@@ -21,7 +21,7 @@ const Login=()=>{
     .then(response => {
     console.log(response.user.uid);
     toast.success('Signed up with Google!');
-    navigate('/filepage');
+    navigate('/dashboardpage');
   })
         .catch(error=>{
             console.log(error);
@@ -37,7 +37,7 @@ const Login=()=>{
         signInWithEmailAndPassword(auth,email,password)
         .then((response) => {
             toast.success('Logged in successfully!');
-            navigate('/filepage');
+            navigate('/dashboardpage');
           })
         .catch(error=>{
             console.log(error);
