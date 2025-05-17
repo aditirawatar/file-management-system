@@ -1,15 +1,15 @@
-//signup.jsx
+// //signup.jsx
+
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, googleProvider } from '../../services/firebaseConfig.js'; 
+import { signInWithPopup, createUserWithEmailAndPassword, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 
-const Signup = () => {
 
-    const auth = getAuth();
+const Signup = () => {
     const navigate = useNavigate();
-    
 
     const [authing, setAuthing] = useState(false);
     const [email, setEmail] = useState('');
@@ -17,16 +17,18 @@ const Signup = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
 
+    console.log("Auth Object:", auth); 
+
     const signUpWithGoogle = async () => {
         setAuthing(true);
-        
+
         signInWithPopup(auth, new GoogleAuthProvider())
             .then(response => {
-                console.log(response.user.uid);
-                navigate('/filepage');
+                console.log("Google SignIn User:", response.user);
+                navigate('/dashboardpage');
             })
             .catch(error => {
-                console.log(error);
+                console.error("Google SignIn Error:", error);
                 setAuthing(false);
             });
     };
@@ -41,13 +43,13 @@ const Signup = () => {
         setError('');
 
         createUserWithEmailAndPassword(auth, email, password)
-        .then(response => {
-            toast.success('Account created successfully!');
-            navigate('/');
-        })
-        
+            .then(response => {
+                console.log("New user:", response.user); 
+                toast.success('Account created successfully!');
+                navigate('/dashboardpage');
+            })
             .catch(error => {
-                console.log(error);
+                console.error("Signup error:", error); 
                 setError(error.message);
                 setAuthing(false);
             });
