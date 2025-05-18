@@ -20,6 +20,13 @@ const DashboardPage = () => {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
   const navigate = useNavigate();
+  const [showFolderInput, setShowFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+const [folderName, setFolderName] = useState('');
+const [showFileInput, setShowFileInput] = useState(false);
+const [newFileName, setNewFileName] = useState('');
+
 
   useEffect(() => {
     const auth = getAuth();
@@ -77,26 +84,29 @@ const DashboardPage = () => {
     }
   };
 
+  //create folder ---
   const createFolderHandler = async () => {
-    const name = prompt('Enter folder name:');
-    if (!name || !user) return;
-    
-    try {
-      const userItemsRef = collection(db, 'users', user.uid, 'items');
-      const docRef = await addDoc(userItemsRef, {
-        type: 'folder',
-        name,
-        parentId: currentFolderId || null,
-        createdAt: new Date()
-      });
+  if (!newFolderName.trim() || !user) return;
 
-      await logActivity('folder', name, { folderId: docRef.id });
-    } catch (error) {
-      console.error("Error creating folder:", error);
-      alert("Failed to create folder. Please try again.");
-    }
-  };
+  try {
+    const userItemsRef = collection(db, 'users', user.uid, 'items');
+    const docRef = await addDoc(userItemsRef, {
+      type: 'folder',
+      name: newFolderName.trim(),
+      parentId: currentFolderId || null,
+      createdAt: new Date()
+    });
 
+    await logActivity('folder', newFolderName.trim(), { folderId: docRef.id });
+    setNewFolderName('');
+    setShowFolderInput(false);
+  } catch (error) {
+    console.error("Error creating folder:", error);
+    alert("Failed to create folder. Please try again.");
+  }
+};
+
+   //Create file --
   const createFile = async () => {
     const name = prompt('Enter file name:');
     if (!name || !user) return;
@@ -273,34 +283,138 @@ const DashboardPage = () => {
   if (showUpload) return <FilePageWrapper />;
 
   return (
-    <div className="min-h-screen w-full bg-blue-900 text-white">
+    <div className="min-h-screen w-full bg-gray-900 text-white">
       <div className="container mx-auto px-8 py-12 flex flex-col items-center">
         <div className="w-full flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">📁 My Drive</h1>
           <button
             onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white font-medium"
+            className="bg-white hover:bg-red-700 hover:text-white hover:cursor-pointer px-4 py-2 rounded text-black font-medium"
           >
             🔒 Logout
           </button>
         </div>
 
+        {/* Create folder */}
+
         <div className="flex justify-center gap-8 mb-6 w-full max-w-4xl">
-          <button
-            onClick={createFolderHandler}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-lg font-medium flex-1 max-w-xs"
-          >
-            + New Folder
-          </button>
-          <button
-            onClick={createFile}
-            className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg text-lg font-medium flex-1 max-w-xs"
-          >
-            + New File
-          </button>
+         {showFolderInput ? (
+  <div className="flex flex-col items-center gap-2 bg-gray-800 p-4 rounded-xl shadow-md max-w-xs w-full">
+    <input
+      type="text"
+      value={newFolderName}
+      onChange={(e) => setNewFolderName(e.target.value)}
+      placeholder="Enter folder name"
+      className="w-full px-3 py-2 rounded-md bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
+    />
+    <div className="flex gap-2">
+      <button
+        onClick={async () => {
+          if (!newFolderName.trim() || !user) return;
+
+          try {
+            const userItemsRef = collection(db, 'users', user.uid, 'items');
+            const docRef = await addDoc(userItemsRef, {
+              type: 'folder',
+              name: newFolderName,
+              parentId: currentFolderId || null,
+              createdAt: new Date()
+            });
+            await logActivity('folder', newFolderName, { folderId: docRef.id });
+
+            // Reset to initial state
+            setShowFolderInput(false);
+            setNewFolderName('');
+          } catch (error) {
+            console.error("Error creating folder:", error);
+            alert("Failed to create folder. Please try again.");
+          }
+        }}
+        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-semibold"
+      >
+        Create
+      </button>
+      <button
+        onClick={() => {
+          setShowFolderInput(false);
+          setNewFolderName('');
+        }}
+        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-semibold"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+) : (
+  <button
+    onClick={() => setShowFolderInput(true)}
+    className="bg-purple-600 text-white hover:bg-purple-700 hover:text-white hover:cursor-pointer px-6 py-5 rounded-lg text-2xl font-bold flex-1 max-w-xs"
+  >
+    + New Folder
+  </button>
+)}
+
+          {/* create file */}
+          {showFileInput ? (
+  <div className="flex flex-col items-center gap-2 bg-gray-800 p-4 rounded-xl shadow-md max-w-xs w-full">
+    <input
+      type="text"
+      value={newFileName}
+      onChange={(e) => setNewFileName(e.target.value)}
+      placeholder="Enter file name"
+      className="w-full px-3 py-2 rounded-md bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-green-500"
+    />
+    <div className="flex gap-2">
+      <button
+        onClick={async () => {
+          if (!newFileName.trim() || !user) return;
+
+          try {
+            const userItemsRef = collection(db, 'users', user.uid, 'items');
+            const docRef = await addDoc(userItemsRef, {
+              type: 'file',
+              name: newFileName,
+              parentId: currentFolderId || null,
+              createdAt: new Date(),
+              content: '' // Optional: default empty content
+            });
+            await logActivity('file', newFileName, { fileId: docRef.id });
+
+            // Reset to original state
+            setShowFileInput(false);
+            setNewFileName('');
+          } catch (error) {
+            console.error("Error creating file:", error);
+            alert("Failed to create file. Please try again.");
+          }
+        }}
+        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-semibold"
+      >
+        Create
+      </button>
+      <button
+        onClick={() => {
+          setShowFileInput(false);
+          setNewFileName('');
+        }}
+        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-semibold"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+) : (
+  <button
+    onClick={() => setShowFileInput(true)}
+    className="bg-green-600 hover:bg-green-700 hover:cursor-pointer px-6 py-3 rounded-lg text-2xl font-bold flex-1 max-w-xs"
+  >
+    + New File
+  </button>
+)}
+
           <button
             onClick={openUpload}
-            className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg text-lg font-medium flex-1 max-w-xs"
+            className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer px-6 py-3 rounded-lg text-2xl font-bold flex-1 max-w-xs"
           >
             ⬆️ Upload File
           </button>

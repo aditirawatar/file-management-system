@@ -4,9 +4,10 @@ function Navbar()
 {
     return(
         <>
-        <div className="flex justify-around border border-neutral-100 py-2">
-        <Link to="/" className="text-2xl font-bold " >Home</Link>
-        <Link to="/Login" className="text-2xl font-bold " >Login</Link>
+        <div className="flex justify-between   text-gray-700 border-b border-gray-400 bg-gray-100 py-3 px-18 m-0">
+        <Link to="/" className="text-3xl  font-bold " >Fileflow</Link>
+        <Link to="/Login" className="text-3xl font-bold " >Login</Link>
+        
         
         </div>
         </>
