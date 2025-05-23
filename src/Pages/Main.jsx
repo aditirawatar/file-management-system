@@ -19,7 +19,6 @@ function Main() {
         </button></Link>
       </section>
 
-      {/* Features */}
       <section className="bg-white py-20 my-20">
         <div className="container mx-auto px-4 grid md:grid-cols-3 gap-10 text-center">
           <div>

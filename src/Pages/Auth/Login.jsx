@@ -1,4 +1,3 @@
-//login.jsx
 import { toast } from 'react-toastify';
 import { useState } from "react";
 import {getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword} from 'firebase/auth';
