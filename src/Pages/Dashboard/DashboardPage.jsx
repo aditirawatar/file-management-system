@@ -3,6 +3,8 @@ import FilePage from "../Auth/Filepage";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { db } from "../../services/firebaseConfig";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import Fat32Simulator from "./Fat32Simulator";
 import {
   doc,
   getDoc,
@@ -35,11 +37,13 @@ const DashboardPage = () => {
   const [showFileInput, setShowFileInput] = useState(false);
   const [newFileName, setNewFileName] = useState("");
   const [openDropdownId, setOpenDropdownId] = useState(null);
-
+  const [view, setView] = useState("dashboard");
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const displayItems = showSearch && searchQuery ? searchResults : items;
 
@@ -441,10 +445,23 @@ const DashboardPage = () => {
   if (showUpload) return <FilePageWrapper />;
 
   return (
-    <div className="min-h-screen w-full bg-gray-900 text-white">
+    <div className="min-h-screen w-full bg-gray-900 text-white flex">
+  {sidebarOpen && <Sidebar view={view} setView={setView} />}
+  
+  <div className="flex-1">
+    {view === "fat32" ? (
+      <Fat32Simulator items={items} />
+    ) : (
       <div className="container mx-auto px-8 py-12 flex flex-col items-center">
         <div className="w-full flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold">📁 My Drive</h1>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="bg-white hover:bg-gray-300 text-black px-4 py-2 rounded"
+            >
+              📂 Menu
+            </button>
+          </div>
           <button
             onClick={handleLogout}
             className="bg-white hover:bg-red-700 hover:text-white hover:cursor-pointer px-4 py-2 rounded text-black font-medium"
@@ -453,151 +470,154 @@ const DashboardPage = () => {
           </button>
         </div>
 
+
+
         {/* searching */}
         {showSearch && (
-          <div className="w-full max-w-4xl mb-6">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search files and folders..."
-                className="w-full px-4 py-3 rounded-lg bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
-              {isSearching && (
-                <div className="absolute right-3 top-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
-                </div>
-              )}
+            <div className="w-full max-w-4xl mb-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search files and folders..."
+                  className="w-full px-4 py-3 rounded-lg bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Create folder */}
-        <div className="flex justify-center gap-4 mb-6 w-full max-w-4xl">
-          {showFolderInput ? (
-            <div className="flex flex-col items-center gap-2 bg-gray-800 p-4 rounded-xl shadow-md max-w-xs w-full">
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Enter folder name"
-                className="w-full px-3 py-2 rounded-md bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={createFolderHandler}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-semibold"
-                >
-                  Create
-                </button>
-                <button
-                  onClick={() => {
-                    setShowFolderInput(false);
-                    setNewFolderName("");
-                  }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-semibold"
-                >
-                  Cancel
-                </button>
+         <div className="flex justify-center gap-4 mb-6 w-full max-w-4xl">
+            {showFolderInput ? (
+              <div className="flex flex-col items-center gap-2 bg-gray-800 p-4 rounded-xl shadow-md max-w-xs w-full">
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Enter folder name"
+                  className="w-full px-3 py-2 rounded-md bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={createFolderHandler}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-semibold"
+                  >
+                    Create
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowFolderInput(false);
+                      setNewFolderName("");
+                    }}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowFolderInput(true)}
-              className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer px-8 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
-            >
-              + New Folder
-            </button>
-          )}
+            ) : (
+             <button
+                onClick={() => setShowFolderInput(true)}
+                className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer px-8 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
+              >
+                + New Folder
+              </button>
+            )}
 
           {/* create file */}
-          {showFileInput ? (
-            <div className="flex flex-col items-center gap-2 bg-gray-800 p-4 rounded-xl shadow-md max-w-xs w-full">
-              <input
-                type="text"
-                value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
-                placeholder="Enter file name"
-                className="w-full px-3 py-2 rounded-md bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-green-500"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    createFile();
-                  }
-                }}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={createFile}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-semibold"
-                >
-                  Create
-                </button>
-                <button
-                  onClick={() => {
-                    setShowFileInput(false);
-                    setNewFileName("");
+           {showFileInput ? (
+              <div className="flex flex-col items-center gap-2 bg-gray-800 p-4 rounded-xl shadow-md max-w-xs w-full">
+                <input
+                  type="text"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  placeholder="Enter file name"
+                  className="w-full px-3 py-2 rounded-md bg-gray-100 text-black focus:outline-none focus:ring-2 focus:ring-green-500"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      createFile();
+                    }
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-semibold"
-                >
-                  Cancel
-                </button>
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={createFile}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-semibold"
+                  >
+                    Create
+                 </button>
+                  <button
+                    onClick={() => {
+                      setShowFileInput(false);
+                      setNewFileName("");
+                    }}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowFileInput(true)}
-              className="bg-green-600 hover:bg-green-700 hover:cursor-pointer px-8 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
+            ) : (
+              <button
+                onClick={() => setShowFileInput(true)}
+                className="bg-green-600 hover:bg-green-700 hover:cursor-pointer px-8 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
+              >
+                + New File
+              </button>
+            )}
+
+             <button
+              onClick={openUpload}
+              className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer px-8 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
             >
-              + New File
+              ⬆️ Upload File
+            </button>
+
+            <button
+              onClick={() => {
+                setShowSearch(!showSearch);
+                if (showSearch) {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }
+              }}
+              className="bg-yellow-600 hover:bg-yellow-700 hover:cursor-pointer px-4 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
+            >
+              {showSearch ? "✕ Close" : "🔍 Search"}
+            </button>
+          </div>
+          
+
+       {currentFolderId && (
+            <button
+              onClick={goBackFolder}
+              className="mb-6 text-sm text-yellow-300 hover:text-yellow-100 underline flex items-center"
+            >
+              <span className="mr-1">⬅️</span> Go Back
             </button>
           )}
 
-          <button
-            onClick={openUpload}
-            className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer px-8 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
-          >
-            ⬆️ Upload File
-          </button>
-
-          <button
-            onClick={() => {
-              setShowSearch(!showSearch);
-              if (showSearch) {
-                setSearchQuery("");
-                setSearchResults([]);
-              }
-            }}
-            className="bg-yellow-600 hover:bg-yellow-700 hover:cursor-pointer px-4 py-4 rounded-lg text-xl font-bold whitespace-nowrap min-w-[180px]"
-          >
-            {showSearch ? "✕ Close" : "🔍 Search"}
-          </button>
-        </div>
-
-        {currentFolderId && (
-          <button
-            onClick={goBackFolder}
-            className="mb-6 text-sm text-yellow-300 hover:text-yellow-100 underline flex items-center"
-          >
-            <span className="mr-1">⬅️</span> Go Back
-          </button>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full max-w-6xl">
-          {displayItems.length === 0 ? (
-            <p className="text-center text-white col-span-full text-xl mt-12">
-              {showSearch && searchQuery
-                ? "🔍 No matching items found"
-                : "🚫 This folder is empty"}
-            </p>
-          ) : (
-            displayItems.map((item) => (
-              <div
-                key={item.id}
-                onDoubleClick={() => handleItemDoubleClick(item)}
-                className="cursor-pointer bg-white text-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex flex-col items-center relative"
-              >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full max-w-6xl">
+            {displayItems.length === 0 ? (
+              <p className="text-center text-white col-span-full text-xl mt-12">
+                {showSearch && searchQuery
+                  ? "🔍 No matching items found"
+                  : "🚫 This folder is empty"}
+              </p>
+            ) : (
+              displayItems.map((item) => (
+                <div
+                  key={item.id}
+                  onDoubleClick={() => handleItemDoubleClick(item)}
+                  className="cursor-pointer bg-white text-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex flex-col items-center relative"
+                >
                 {/* dropdown menu */}
                 <div className="absolute top-2 right-2">
                   <button
@@ -611,54 +631,56 @@ const DashboardPage = () => {
                   >
                     ⋮
                   </button>
-                  {openDropdownId === item.id && (
-                    <div className="absolute right-0 mt-2 w-28 bg-white border rounded shadow-lg z-10">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteItem(item);
-                          setOpenDropdownId(null);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    {openDropdownId === item.id && (
+                      <div className="absolute right-0 mt-2 w-28 bg-white border rounded shadow-lg z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItem(item);
+                            setOpenDropdownId(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                 <div className="text-5xl mb-4">{getFileIcon(item)}</div>
+                  <h3 className="text-lg font-semibold text-center mb-2">
+                    {item.name}
+                  </h3>
+
+                  {item.type === "file" && item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline text-sm mb-2"
+                    >
+                      View / Download
+                    </a>
+                  )}
+
+                 {item.createdAt && (
+                    <p className="text-xs text-gray-500">
+                      {item.createdAt instanceof Date
+                        ? item.createdAt.toLocaleString()
+                        : item.createdAt.seconds
+                        ? new Date(item.createdAt.seconds * 1000).toLocaleString()
+                        : "Unknown date"}
+                    </p>
                   )}
                 </div>
-
-                <div className="text-5xl mb-4">{getFileIcon(item)}</div>
-                <h3 className="text-lg font-semibold text-center mb-2">
-                  {item.name}
-                </h3>
-
-                {item.type === "file" && item.url && (
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline text-sm mb-2"
-                  >
-                    View / Download
-                  </a>
-                )}
-
-                {item.createdAt && (
-                  <p className="text-xs text-gray-500">
-                    {item.createdAt instanceof Date
-                      ? item.createdAt.toLocaleString()
-                      : item.createdAt.seconds
-                      ? new Date(item.createdAt.seconds * 1000).toLocaleString()
-                      : "Unknown date"}
-                  </p>
-                )}
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
-  );
+  </div>
+);
 };
 
 export default DashboardPage;
