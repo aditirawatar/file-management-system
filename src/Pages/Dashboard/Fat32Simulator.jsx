@@ -3,7 +3,7 @@ import { collection, getDocs, query } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../services/firebaseConfig';
 
-const BLOCK_SIZE_KB = 4;
+const BLOCK_SIZE_KB = 32;
 
 const Fat32Simulator = () => {
   const [userItems, setUserItems] = useState([]);
