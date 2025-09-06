@@ -1,4 +1,5 @@
-import { getDatabase, ref, push } from 'firebase/database';
+// src/utils/folderCreator.js
+import { getDatabase, ref, push, set } from 'firebase/database';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
@@ -12,13 +13,20 @@ const createFolder = async (userId, folderName, parentId = null) => {
   try {
     const dbRT = getDatabase();
 
-    // Push to Realtime Database
-    const folderRef = ref(dbRT, `users/${userId}/folders`);
-    const folderSnapshot = await push(folderRef, {
+    // Create folder object
+    const folderData = {
+      id: Date.now().toString(),
       name: folderName,
-      createdAt: Date.now(),
-      parentId: parentId || null
-    });
+      type: "folder",
+      parent: parentId,
+      size: "0 KB",
+      date: new Date().toLocaleDateString(),
+      createdAt: Date.now()
+    };
+
+    // Push to Realtime Database
+    const folderRef = ref(dbRT, `users/${userId}/folders/${folderData.id}`);
+    await set(folderRef, folderData);
 
     // Log in Firestore
     await addDoc(collection(db, 'folders'), {
@@ -27,12 +35,14 @@ const createFolder = async (userId, folderName, parentId = null) => {
       name: folderName,
       action: 'created',
       timestamp: new Date(),
-      folderId: folderSnapshot.key,
+      folderId: folderData.id,
       parentId: parentId || null
     });
 
+    return { success: true, folderId: folderData.id };
   } catch (err) {
     console.error('Error creating folder or logging activity:', err);
+    return { success: false };
   }
 };
 

@@ -1,5 +1,6 @@
 //Front page
 import React from "react";
+import "./button.css";
 import { Link } from "react-router-dom";
 function Main() {
 
@@ -15,7 +16,7 @@ function Main() {
         <p className="text-lg text-gray-700 mb-8">
           FileFlow is your all-in-one file management solution — upload, manage, and collaborate in a secure and user-friendly environment.
         </p>
-       <Link to="/Login"> <button className="bg-gray-700 text-white px-6 py-3 rounded-xl hover:bg-purple-800 transition">
+       <Link to="/Login"> <button className="shine-border text-white px-6 py-3 rounded-xl font-medium">
           Get Started
         </button></Link>
       </section>
