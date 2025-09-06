@@ -1,0 +1,46 @@
+.shine-border {
+  position: relative;
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: #3c4a52; 
+  color: white;
+  font-weight: 500;
+  overflow: hidden;
+  z-index: 0;
+}
+
+
+.shine-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px; /* thinner border */
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #e1dae6 10%,
+    #fafafa 20%,
+    #878b8c 30%,
+    transparent 40%
+  );
+  background-size: 200% 200%;
+  animation: borderBeam 4s linear infinite;
+  -webkit-mask: 
+    linear-gradient(#000 0 0) content-box, 
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: 1;
+}
+
+@keyframes borderBeam {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+
