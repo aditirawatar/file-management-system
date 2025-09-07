@@ -3,8 +3,17 @@ import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import createFolder from "../../components/FolderCreator";
 import uploadFileAndSave from "../../components/FileUploader";
+import FileViewer from "../../components/FileViewer";
 import loadUserData from "../../utils/loadUserData";
 import { db } from "../../services/firebaseConfig";
+import { 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  updateDoc, 
+  collection, 
+  addDoc 
+} from 'firebase/firestore';
 
 const DashboardPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,6 +27,7 @@ const DashboardPage = () => {
   const [editingFile, setEditingFile] = useState(null);
   const [fileContent, setFileContent] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [viewingFile, setViewingFile] = useState(null);
   const [user, setUser] = useState({
     uid: null,
     username: "aditiawatar2004",
@@ -41,6 +51,8 @@ const DashboardPage = () => {
         
         try {
           setLoading(true);
+          await debugFirestoreStructure(firebaseUser.uid);
+
           const userData = await loadUserData(firebaseUser.uid);
           setFolders(userData.folders || []);
           setFiles(userData.files || []);
@@ -83,66 +95,78 @@ const DashboardPage = () => {
     }
   };
 
-  const handleCreateFolder = async () => {
-    if (!user.uid) return;
+const handleCreateFolder = async () => {
+  if (!user.uid) {
+    console.error('No user ID available');
+    return;
+  }
+  
+  try {
+    console.log('Creating folder for user:', user.uid); // Debug log
     
-    try {
-      // Create folder in Firebase
-      await createFolder(user.uid, "New Folder", currentFolder);
-      
-      // Create local folder object
-      const newFolder = {
-        id: Date.now().toString(),
-        name: "New Folder",
-        type: "folder",
-        parent: currentFolder,
-        size: "0 KB",
-        date: new Date().toLocaleDateString(),
-      };
+    // Create folder in Firebase
+    const result = await createFolder(user.uid, "New Folder", currentFolder);
+    
+    console.log('Create folder result:', result); // Debug log
+    
+    if (result.success) {
+      // Create local folder object (use the same data structure as Firebase)
+      const newFolder = result.folderData;
       
       // Update local state
-      setFolders(prev => [...prev, newFolder]);
+      setFolders(prev => {
+        const updated = [...prev, newFolder];
+        console.log('Updated folders state:', updated); // Debug log
+        return updated;
+      });
+      
+      // Start renaming
       setRenamingItem(newFolder.id);
       setNewName("New Folder");
-    } catch (error) {
-      console.error("Error creating folder:", error);
+    } else {
+      console.error('Failed to create folder:', result.error);
     }
-  };
+  } catch (error) {
+    console.error("Error creating folder:", error);
+  }
+};
 
   const handleUploadFile = async () => {
-    if (!user.uid) return;
-    
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        try {
-          // Upload to Cloudinary and save to Firebase
-          const result = await uploadFileAndSave(user.uid, file, currentFolder);
-          
-          if (result.success) {
-            // Create local file object
-            const newFile = {
-              id: Date.now().toString(),
-              name: file.name,
-              type: "file",
-              content: "",
-              parent: currentFolder,
-              size: `${(file.size / 1024).toFixed(1)} KB`,
-              date: new Date().toLocaleDateString(),
-            };
-            
-            // Update local state
-            setFiles(prev => [...prev, newFile]);
-          }
-        } catch (error) {
-          console.error("Error uploading file:", error);
+  if (!user.uid) return;
+  
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      console.log('Selected file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      
+      try {
+        // Upload to Cloudinary and save to Firebase
+        const result = await uploadFileAndSave(user.uid, file, currentFolder);
+        
+        if (result.success) {
+          console.log('Upload successful!');
+          // Reload user data to get the file with URL
+          const userData = await loadUserData(user.uid);
+          setFolders(userData.folders || []);
+          setFiles(userData.files || []);
+        } else {
+          console.error('Upload failed with error:', result.error);
+          alert(`Upload failed: ${result.error || 'Unknown error'}`);
         }
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        alert(`Upload error: ${error.message}`);
       }
-    };
-    input.click();
+    }
   };
+  input.click();
+};
 
   const handleDelete = async (id, type) => {
     if (!user.uid) return;
@@ -203,9 +227,20 @@ const DashboardPage = () => {
   };
 
   const handleOpenFile = (file) => {
+  // Check if file has a URL (uploaded file) or content (text file)
+  if (file.url) {
+    // This is an uploaded file, show it in the viewer
+    setViewingFile(file);
+  } else {
+    // This is a text file, open in editor
     setEditingFile(file);
     setFileContent(file.content || "");
-  };
+  }
+};
+
+const handleCloseViewer = () => {
+  setViewingFile(null);
+};
 
   const handleSaveFile = async () => {
     if (editingFile && user.uid) {
@@ -701,34 +736,189 @@ const DashboardPage = () => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* File Viewer Modal */}
+{viewingFile && (
+  <FileViewer 
+    file={viewingFile} 
+    onClose={handleCloseViewer} 
+  />
+)}
     </div>
   );
 };
 
 // Firebase utility functions
-const createFileInFirebase = async (userId, file) => {
-  // Implementation for creating a file in Firebase
-  // This would use your Firestore or Realtime Database structure
+const createFileInFirebase = async (userId, fileData) => {
+  try {
+    const fileRef = doc(db, 'users', userId, 'files', fileData.id);
+    await setDoc(fileRef, {
+      ...fileData,
+      userId: userId,
+      createdAt: Date.now()
+    });
+
+    // Log activity
+    await addDoc(collection(db, 'activities'), {
+      userId,
+      type: 'file',
+      name: fileData.name,
+      action: 'created',
+      timestamp: new Date(),
+      fileId: fileData.id,
+      parentId: fileData.parent || null
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating file:', error);
+    throw error;
+  }
 };
 
 const deleteFileFromFirebase = async (userId, fileId) => {
-  // Implementation for deleting a file from Firebase
+  try {
+    const fileRef = doc(db, 'users', userId, 'files', fileId);
+    await deleteDoc(fileRef);
+
+    // Log activity
+    await addDoc(collection(db, 'activities'), {
+      userId,
+      type: 'file',
+      action: 'deleted',
+      timestamp: new Date(),
+      fileId: fileId
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    throw error;
+  }
 };
 
 const deleteFolderFromFirebase = async (userId, folderId) => {
-  // Implementation for deleting a folder from Firebase
-};
+  try {
+    const folderRef = doc(db, 'users', userId, 'folders', folderId);
+    await deleteDoc(folderRef);
 
+    // Log activity
+    await addDoc(collection(db, 'activities'), {
+      userId,
+      type: 'folder',
+      action: 'deleted',
+      timestamp: new Date(),
+      folderId: folderId
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting folder:', error);
+    throw error;
+  }
+};
 const renameFileInFirebase = async (userId, fileId, newName) => {
-  // Implementation for renaming a file in Firebase
+  try {
+    const fileRef = doc(db, 'users', userId, 'files', fileId);
+    await updateDoc(fileRef, {
+      name: newName,
+      updatedAt: Date.now()
+    });
+
+    // Log activity
+    await addDoc(collection(db, 'activities'), {
+      userId,
+      type: 'file',
+      action: 'renamed',
+      timestamp: new Date(),
+      fileId: fileId,
+      newName: newName
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error renaming file:', error);
+    throw error;
+  }
 };
 
 const renameFolderInFirebase = async (userId, folderId, newName) => {
-  // Implementation for renaming a folder in Firebase
+  try {
+    const folderRef = doc(db, 'users', userId, 'folders', folderId);
+    await updateDoc(folderRef, {
+      name: newName,
+      updatedAt: Date.now()
+    });
+
+    // Log activity
+    await addDoc(collection(db, 'activities'), {
+      userId,
+      type: 'folder',
+      action: 'renamed',
+      timestamp: new Date(),
+      folderId: folderId,
+      newName: newName
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error renaming folder:', error);
+    throw error;
+  }
 };
 
 const updateFileInFirebase = async (userId, fileId, content) => {
-  // Implementation for updating file content in Firebase
+  try {
+    const fileRef = doc(db, 'users', userId, 'files', fileId);
+    await updateDoc(fileRef, {
+      content: content,
+      size: `${(new Blob([content]).size / 1024).toFixed(1)} KB`,
+      date: new Date().toLocaleDateString(),
+      updatedAt: Date.now()
+    });
+
+    // Log activity
+    await addDoc(collection(db, 'activities'), {
+      userId,
+      type: 'file',
+      action: 'updated',
+      timestamp: new Date(),
+      fileId: fileId
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating file:', error);
+    throw error;
+  }
+};
+
+// 4. Debug function to check Firestore structure
+const debugFirestoreStructure = async (userId) => {
+  try {
+    // Check if user document exists
+    const userDoc = doc(db, 'users', userId);
+    console.log('User document reference:', userDoc);
+    
+    // Check folders subcollection
+    const foldersRef = collection(db, 'users', userId, 'folders');
+    const foldersSnapshot = await getDocs(foldersRef);
+    console.log('Folders in Firestore:', foldersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      data: doc.data()
+    })));
+    
+    // Check files subcollection
+    const filesRef = collection(db, 'users', userId, 'files');
+    const filesSnapshot = await getDocs(filesRef);
+    console.log('Files in Firestore:', filesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      data: doc.data()
+    })));
+    
+  } catch (error) {
+    console.error('Error debugging Firestore structure:', error);
+  }
 };
 
 export default DashboardPage;

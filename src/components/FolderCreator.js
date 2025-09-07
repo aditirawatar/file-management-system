@@ -1,48 +1,46 @@
 // src/utils/folderCreator.js
 import { getDatabase, ref, push, set } from 'firebase/database';
-import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
+import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 
-/**
- * Creates a folder in Realtime Database and logs the creation in Firestore
- * @param {string} userId - Firebase Auth User ID
- * @param {string} folderName - Name of the folder
- * @param {string|null} parentId - ID of the parent folder (null for root)
- */
 const createFolder = async (userId, folderName, parentId = null) => {
   try {
-    const dbRT = getDatabase();
-
+    // Generate a unique ID for the folder
+    const folderId = Date.now().toString();
+    
     // Create folder object
     const folderData = {
-      id: Date.now().toString(),
+      id: folderId,
       name: folderName,
       type: "folder",
       parent: parentId,
       size: "0 KB",
       date: new Date().toLocaleDateString(),
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      userId: userId
     };
 
-    // Push to Realtime Database
-    const folderRef = ref(dbRT, `users/${userId}/folders/${folderData.id}`);
-    await set(folderRef, folderData);
+    // Store folder data in Firestore subcollection
+    const folderRef = doc(db, 'users', userId, 'folders', folderId);
+    await setDoc(folderRef, folderData);
 
-    // Log in Firestore
-    await addDoc(collection(db, 'folders'), {
+    console.log('Folder created successfully:', folderId); // Debug log
+
+    // Optional: Log activity in separate collection
+    await addDoc(collection(db, 'activities'), {
       userId,
       type: 'folder',
       name: folderName,
       action: 'created',
       timestamp: new Date(),
-      folderId: folderData.id,
+      folderId: folderId,
       parentId: parentId || null
     });
 
-    return { success: true, folderId: folderData.id };
+    return { success: true, folderId: folderId, folderData: folderData };
   } catch (err) {
-    console.error('Error creating folder or logging activity:', err);
-    return { success: false };
+    console.error('Error creating folder:', err);
+    return { success: false, error: err.message };
   }
 };
 

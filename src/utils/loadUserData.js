@@ -4,16 +4,39 @@ import { db } from "../services/firebaseConfig";
 
 const loadUserData = async (userId) => {
   try {
-    const foldersSnap = await getDocs(collection(db, "users", userId, "folders"));
-    const filesSnap = await getDocs(collection(db, "users", userId, "files"));
+    console.log('Loading user data for:', userId);
+    
+    const folders = [];
+    const files = [];
 
-    const folders = foldersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const files = filesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Load folders from subcollection
+    const foldersRef = collection(db, 'users', userId, 'folders');
+    const foldersSnapshot = await getDocs(foldersRef);
+    
+    foldersSnapshot.forEach((doc) => {
+      const folderData = doc.data();
+      folders.push(folderData);
+    });
 
-    return { folders, files };
+    // Load files from subcollection
+    const filesRef = collection(db, 'users', userId, 'files');
+    const filesSnapshot = await getDocs(filesRef);
+    
+    filesSnapshot.forEach((doc) => {
+      const fileData = doc.data();
+      // Make sure all fields including URL are loaded
+      files.push(fileData);
+    });
+
+    console.log('Loaded files with URLs:', files.filter(f => f.url));
+
+    return {
+      folders: folders,
+      files: files
+    };
   } catch (error) {
-    console.error("Error loading user data:", error);
-    return { folders: [], files: [] };
+    console.error('Error loading user data:', error);
+    throw error;
   }
 };
 
