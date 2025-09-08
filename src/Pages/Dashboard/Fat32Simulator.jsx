@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { db } from '../../services/firebaseConfig';
+import React, { useState, useEffect } from "react";
+import { collection, getDocs, query } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { db } from "../../services/firebaseConfig";
+
 
 const BLOCK_SIZE_KB = 32;
 
@@ -16,13 +17,31 @@ const Fat32Simulator = () => {
       const user = auth.currentUser;
       if (!user) return;
 
-      const userItemsRef = collection(db, 'users', user.uid, 'items');
-      const q = query(userItemsRef);
-      const snapshot = await getDocs(q);
       const items = [];
-      snapshot.forEach(doc => {
-        items.push({ id: doc.id, ...doc.data() });
+
+      // ✅ Load folders
+      const foldersRef = collection(db, "users", user.uid, "folders");
+      const foldersSnap = await getDocs(foldersRef);
+      foldersSnap.forEach((doc) => {
+        items.push({
+          id: doc.id,
+          ...doc.data(),
+          type: "folder", // make sure it has type
+          size: 0, // folders usually 0 KB
+        });
       });
+
+      // ✅ Load files
+      const filesRef = collection(db, "users", user.uid, "files");
+      const filesSnap = await getDocs(filesRef);
+      filesSnap.forEach((doc) => {
+        items.push({
+          id: doc.id,
+          ...doc.data(),
+          type: "file", // enforce type
+        });
+      });
+
       setUserItems(items);
     };
 
@@ -54,45 +73,55 @@ const Fat32Simulator = () => {
   };
 
   const getBlockColor = (type) => {
-    if (type === 'folder') return 'bg-blue-500';
-    if (type === 'file') return 'bg-yellow-400';
-    return 'bg-green-500'; // upload or unknown
+    if (type === "folder") return "bg-blue-500";
+    if (type === "file") return "bg-yellow-400";
+    return "bg-green-500";
   };
 
   return (
     <div className="bg-gray-800 p-6 my-10 rounded-lg text-white shadow-md max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold mb-6 text-center">🔧 FAT32 Simulator</h2>
 
-      {/* Files & Folders List */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-        {userItems.map((item) => {
-          const blocksNeeded = calculateBlocks(item.size);
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleItemClick(item)}
-              className="bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded text-sm text-left truncate"
-              title={item.name}
-            >
-              <div className="font-semibold">
-                {item.name.length > 15 ? `${item.name.slice(0, 15)}...` : item.name}
-              </div>
-              <div className="text-xs text-gray-300">📦 {blocksNeeded} blocks</div>
-            </button>
-          );
-        })}
-      </div>
+      {userItems.length === 0 ? (
+        <p className="text-center text-gray-400">No files found, upload some first!</p>
+      ) : (
+        <>
+          {/* Files & Folders List */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            {userItems.map((item) => {
+              const blocksNeeded = calculateBlocks(item.size);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  className="bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded text-sm text-left truncate"
+                  title={item.name}
+                >
+                  <div className="font-semibold">
+                    {item.name?.length > 15
+                      ? `${item.name.slice(0, 15)}...`
+                      : item.name}
+                  </div>
+                  <div className="text-xs text-gray-300">
+                    📦 {blocksNeeded} blocks
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
-      {/* Block Info on Click */}
+      {/* Block Info */}
       {selectedItem && (
         <div>
           <h3 className="text-lg font-semibold mb-2">
             Selected: {selectedItem.name}
           </h3>
           <p className="text-sm mb-2 text-gray-300">
-            📁 Type: {selectedItem.type}<br />
-            📦 Size: {selectedItem.size || "Unknown"} KB<br />
-            🔢 Blocks: {calculateBlocks(selectedItem.size)}<br />
+            📁 Type: {selectedItem.type} <br />
+            📦 Size: {selectedItem.size || "Unknown"} KB <br />
+            🔢 Blocks: {calculateBlocks(selectedItem.size)} <br />
             📅 Created At:{" "}
             {selectedItem.createdAt?.seconds
               ? new Date(selectedItem.createdAt.seconds * 1000).toLocaleString()
@@ -104,10 +133,10 @@ const Fat32Simulator = () => {
               <div
                 key={index}
                 className={`w-8 h-8 text-xs flex items-center justify-center rounded ${
-                  block.occupied ? getBlockColor(block.type) : 'bg-gray-500'
+                  block.occupied ? getBlockColor(block.type) : "bg-gray-500"
                 }`}
               >
-                {block.occupied ? '📄' : ''}
+                {block.occupied ? "📄" : ""}
               </div>
             ))}
           </div>

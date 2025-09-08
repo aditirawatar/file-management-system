@@ -14,6 +14,7 @@ import {
   collection, 
   addDoc 
 } from 'firebase/firestore';
+import Fat32Simulator from "./Fat32Simulator";
 
 const DashboardPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,34 +29,38 @@ const DashboardPage = () => {
   const [fileContent, setFileContent] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [viewingFile, setViewingFile] = useState(null);
-  const [user, setUser] = useState({
-    uid: null,
-    username: "aditiawatar2004",
-    name: "Aditia Watara",
-    email: "aditiawatar2004@example.com"
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const auth = getAuth();
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      navigate("/login");
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
 
   // Load user data and files from Firebase on component mount
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser(prev => ({
-          ...prev,
+        const userData = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          username: firebaseUser.displayName || "aditiawatar2004"
-        }));
-        
+          username: firebaseUser.displayName || firebaseUser.email?.split("@")[0],
+          name: firebaseUser.displayName || firebaseUser.email,
+          creationTime: firebaseUser.metadata.creationTime,
+          lastSignInTime: firebaseUser.metadata.lastSignInTime
+        };
+        setUser(userData);
+
         try {
           setLoading(true);
-          await debugFirestoreStructure(firebaseUser.uid);
-
-          const userData = await loadUserData(firebaseUser.uid);
-          setFolders(userData.folders || []);
-          setFiles(userData.files || []);
+          const data = await loadUserData(firebaseUser.uid);
+          setFolders(data.folders || []);
+          setFiles(data.files || []);
         } catch (error) {
           console.error("Error loading user data:", error);
         } finally {
@@ -68,6 +73,9 @@ const DashboardPage = () => {
     
     return () => unsubscribe();
   }, [auth, navigate]);
+
+  const fileCount = files.length;
+  const folderCount = folders.length;
 
   const handleCreateFile = async () => {
     if (!user.uid) return;
@@ -279,11 +287,7 @@ const handleCloseViewer = () => {
     }
   };
 
-  const handleSignOut = () => {
-    signOut(auth).then(() => {
-      navigate("/");
-    });
-  };
+  
 
   // Combine files and folders for display
   const allItems = [...folders, ...files];
@@ -305,10 +309,7 @@ const handleCloseViewer = () => {
     return ["Home", ...path].join(" / ");
   };
 
-  // Count files and folders for profile stats
-  const fileCount = files.length;
-  const folderCount = folders.length;
-
+ 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -329,7 +330,7 @@ const handleCloseViewer = () => {
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-909 hover:bg-gray-100"
+                className="md:hidden p-2 rounded-md text-gray-800 hover:text-gray-909 hover:bg-gray-100"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -338,7 +339,7 @@ const handleCloseViewer = () => {
               
               <button
                 onClick={() => navigate("/")}
-                className="ml-2 text-xl font-bold text-blue-600 hover:text-blue-700"
+                className="ml-2 text-4xl font-bold text-gray-700 "
               >
                 Fileflow
               </button>
@@ -364,7 +365,7 @@ const handleCloseViewer = () => {
               {/* Profile Icon */}
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition-colors"
+                className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-600 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -377,39 +378,63 @@ const handleCloseViewer = () => {
 
       <div className="flex pt-16">
         {/* Sidebar */}
-        <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out`}>
-          <div className="h-full overflow-y-auto">
-            <nav className="mt-8 px-4">
-              <button
-                onClick={() => setActivePage("dashboard")}
-                className={`w-full flex items-center px-4 py-3 rounded-lg mb-2 transition-colors ${
-                  activePage === "dashboard"
-                    ? "bg-blue-100 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0 transition-transform duration-200 ease-in-out`}
+      >
+        <div className="h-full overflow-y-auto">
+          <nav className="mt-8 px-4">
+            <button
+              onClick={() => setActivePage("dashboard")}
+              className={`w-full flex items-center px-4 py-3 rounded-lg mb-2 transition-colors ${
+                activePage === "dashboard"
+                  ? "bg-blue-100 text-gray-600"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <svg
+                className="w-5 h-5 mr-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                Dashboard
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
+              </svg>
+              Dashboard
+            </button>
 
-              <button
-                onClick={() => setActivePage("fat32")}
-                className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
-                  activePage === "fat32"
-                    ? "bg-blue-100 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
+            <button
+              onClick={() => setActivePage("fat32")}
+              className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${
+                activePage === "fat32"
+                  ? "bg-blue-100 text-blue-600"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <svg
+                className="w-5 h-5 mr-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                FAT32 Implementation
-              </button>
-            </nav>
-          </div>
-        </aside>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+              FAT32 Implementation
+            </button>
+          </nav>
+        </div>
+      </aside>
 
         {/* Main Content */}
         <main className={`flex-1 p-6 transition-all duration-300 ${profileOpen ? 'mr-80' : ''}`}>
@@ -654,79 +679,83 @@ const handleCloseViewer = () => {
               </div>
             )
           ) : (
-            <div className="bg-white rounded-lg shadow p-6">
+             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">FAT32 Implementation</h2>
-              <p className="text-gray-600">FAT32 simulation would be implemented here.</p>
+              <Fat32Simulator />
             </div>
           )}
         </main>
 
         {/* Profile Panel */}
-        {profileOpen && (
-          <>
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-30 z-40 md:hidden"
-              onClick={() => setProfileOpen(false)}
-            />
-            <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-lg z-50 transform transition-transform duration-300 overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800">Profile</h2>
-                  <button 
-                    onClick={() => setProfileOpen(false)}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex flex-col items-center mb-6">
-                  <div className="w-24 h-24 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold mb-4">
-                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900">{user.name}</h3>
-                  <p className="text-sm text-gray-500">@{user.username}</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-blue-50 rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold text-blue-600">{fileCount}</p>
-                    <p className="text-sm text-gray-600">Files</p>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-4 text-center">
-                    <p className="text-2xl font-bold text-green-600">{folderCount}</p>
-                    <p className="text-sm text-gray-600">Folders</p>
-                  </div>
-                </div>
-                
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Account Details</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-gray-500">Email</p>
-                      <p className="text-sm text-gray-800">{user.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Member since</p>
-                      <p className="text-sm text-gray-800">December 2023</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={handleSignOut}
-                  className="w-full py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+      {profileOpen && user && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30 z-40 md:hidden"
+            onClick={() => setProfileOpen(false)}
+          />
+          <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-lg z-50 transform transition-transform duration-300 overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-800">Profile</h2>
+                <button 
+                  onClick={() => setProfileOpen(false)}
+                  className="text-gray-400 hover:text-gray-500"
                 >
-                  Sign Out
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>
-          </>
-        )}
+            
+            <div className="p-6">
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-24 h-24 rounded-full bg-gray-500 flex items-center justify-center text-white text-2xl font-bold mb-4">
+                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">{user.name}</h3>
+                <p className="text-sm text-gray-500">@{user.username}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-600">{fileCount}</p>
+                  <p className="text-sm text-gray-600">Files</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <p className="text-2xl font-bold text-green-600">{folderCount}</p>
+                  <p className="text-sm text-gray-600">Folders</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Account Details</h4>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="text-sm text-gray-800">{user.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Member since</p>
+                    <p className="text-sm text-gray-800">{new Date(user.creationTime).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Last login</p>
+                    <p className="text-sm text-gray-800">{new Date(user.lastSignInTime).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleSignOut}
+                className="w-full py-2 px-4 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       </div>
 
       {/* Overlay for mobile sidebar */}
