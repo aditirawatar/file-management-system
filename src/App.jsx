@@ -12,13 +12,12 @@ import Dashboard from './Pages/Dashboard/DashboardPage.jsx';
 function App() {
   return (
     <>
-      <Navbar />
       <Routes>
-        <Route path="/" element={<Main />} />
+        <Route path="/" element={<><Navbar /><div className="pt-16"><Main /></div></>} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboardpage" element={<Dashboard />} /> {}
-        <Route path="/filepage" element={<Filepage />} />    {}
+        <Route path="/dashboardpage" element={<Dashboard />} />
+        <Route path="/filepage" element={<><Navbar /><div className="pt-16"><Filepage /></div></>} />
       </Routes>
 
       <ToastContainer
